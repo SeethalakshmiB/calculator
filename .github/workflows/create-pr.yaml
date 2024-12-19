@@ -1,0 +1,81 @@
+
+# –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––– #
+# Update Environment
+#
+# This is a workflow call that can be invoked from other workflows and takes care of updating the version in the
+# main GitOps repository (`pe-webapps-gitops`) where infrastructure and configuration files are located.
+# –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––– #
+
+name: Update Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        description: The environment to deploy to
+        required: true
+      overlay:
+        type: string
+        description: The path to the overlay files
+        required: true
+      version:
+        type: string
+        description: The application version to deploy
+        required: true
+      app:
+        type: string
+        description: The app name
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-environment:
+    runs-on: ubuntu-latest
+    environment: ${{inputs.environment}}
+    steps:
+      - name: Install curl, kustomize and git
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo install -o root -g root -m 0755 kustomize /usr/local/bin/kustomize
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install git gh -y
+      - name: Generate app token
+        uses: tibdex/github-app-token@v2
+        id: generate-token
+        with:
+          app_id: ${{secrets.GITOPS_APP_ID}}
+          private_key: ${{secrets.GITOPS_APP_PRIVATE_KEY}}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{steps.generate-token.outputs.token}}
+          repository: SeethalakshmiB/argocd-project
+
+      - name: Set image version
+        working-directory: ${{inputs.overlay}}
+        run: |
+          # kustomize edit set image harbor.use1.prod.admin.aws.viacbs.tech/library/github.com/ios-${{inputs.app}}:${{inputs.version}}
+          echo hii > test.txt
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{steps.generate-token.outputs.token}}
+          branch: gitops/${{inputs.version}}-upgrade-${{inputs.environment}}
+          commit-message: '${{inputs.version}}_(${{inputs.environment}}): Upgrade to tag ${{inputs.version}}'
+          delete-branch: true
+          title: '${{inputs.version}}(${{inputs.environment}}): Upgrade to tag ${{inputs.version}}'
+          body: |
+            This is an automated PR created to upgrade the **${{inputs.version}}** application to version \
+            `${{inputs.version}}` in the `${{inputs.environment}}` environment.
+          labels: version-upgrade
