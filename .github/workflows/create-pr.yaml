@@ -60,11 +60,11 @@ jobs:
           token: ${{steps.generate-token.outputs.token}}
           repository: SeethalakshmiB/argocd-project
 
-      # - name: Set image version
-      #   working-directory: ${{inputs.overlay}}
-      #   run: |
-      #     # kustomize edit set image harbor.use1.prod.admin.aws.viacbs.tech/library/github.com/ios-${{inputs.app}}:${{inputs.version}}
-      #     echo hii >> test.txt
+      - name: Set image version
+        working-directory: ${{inputs.overlay}}
+        run: |
+          # kustomize edit set image harbor.use1.prod.admin.aws.viacbs.tech/library/github.com/ios-${{inputs.app}}:${{inputs.version}}
+          echo hii >> advanced.md
 
       - name: Create Pull Request
         id: create-pr
