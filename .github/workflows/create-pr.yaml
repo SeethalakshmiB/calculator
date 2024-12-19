@@ -64,7 +64,7 @@ jobs:
         working-directory: ${{inputs.overlay}}
         run: |
           # kustomize edit set image harbor.use1.prod.admin.aws.viacbs.tech/library/github.com/ios-${{inputs.app}}:${{inputs.version}}
-          echo hii > test.txt
+          echo hii >> test.txt
 
       - name: Create Pull Request
         id: create-pr
